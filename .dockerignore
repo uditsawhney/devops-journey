@@ -1,0 +1,28 @@
+# Files/folders here are EXCLUDED when Docker copies code into the image.
+# Keeps images small and avoids leaking local junk or secrets.
+
+# Git
+.git
+.gitignore
+
+# Python caches and virtual envs
+__pycache__/
+*.py[cod]
+.pytest_cache/
+venv/
+.venv/
+env/
+
+# Secrets - must never end up in an image
+.env
+*.pem
+*.key
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Docs and CI that the running app doesn't need
+README.md

@@ -27,8 +27,8 @@ Stack: **Python 3 + Flask**.
 
 | Phase | Focus | Tools | Status |
 |-------|-------|-------|--------|
-| 0 | App + repo hygiene | Flask, Git, pytest | ✅ In progress |
-| 1 | Containerization | Docker | ⬜ Planned |
+| 0 | App + repo hygiene | Flask, Git, pytest | ✅ Done |
+| 1 | Containerization | Docker | ✅ Done |
 | 2 | Continuous Integration | GitHub Actions | ⬜ Planned |
 | 3 | Continuous Deployment | GitHub Actions + SSH | ⬜ Planned |
 | 4 | Infrastructure as Code | Terraform + Ansible | ⬜ Planned |
@@ -73,8 +73,42 @@ devops-journey/
 ├── app.py            # The Flask application
 ├── test_app.py       # Automated tests (run by CI in Phase 2)
 ├── requirements.txt  # Python dependencies
+├── Dockerfile        # Recipe to build the app into a container image
+├── .dockerignore     # Files excluded from the Docker image
 ├── .gitignore        # Files git should never track
 └── README.md         # You are here
+```
+
+---
+
+## Phase 1: Running with Docker
+
+Build the image (the `-t` flag tags it with a name):
+
+```bash
+docker build -t devops-journey:latest .
+```
+
+Run a container from the image (`-p` maps host port 5000 to container port 5000, `-d` runs it in the background):
+
+```bash
+docker run -d -p 5000:5000 --name devops-journey-app devops-journey:latest
+```
+
+Verify it works:
+
+```bash
+curl http://localhost:5000/
+curl http://localhost:5000/health
+```
+
+Useful commands:
+
+```bash
+docker ps                          # list running containers
+docker logs devops-journey-app     # view app logs
+docker stop devops-journey-app     # stop the container
+docker rm devops-journey-app       # remove the container
 ```
 
 ---
