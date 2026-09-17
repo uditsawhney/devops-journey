@@ -32,7 +32,7 @@ Stack: **Python 3 + Flask**.
 | 0 | App + repo hygiene | Flask, Git, pytest | ✅ Done |
 | 1 | Containerization | Docker | ✅ Done |
 | 2 | Continuous Integration | GitHub Actions | ✅ Done |
-| 3 | Continuous Deployment | GitHub Actions + SSH | ⬜ Planned |
+| 3 | Continuous Deployment | GitHub Actions + SSH | ✅ Done |
 | 4 | Infrastructure as Code | Terraform + Ansible | ⬜ Planned |
 | 5 | Orchestration | Kubernetes (k3s) | ⬜ Planned |
 | 6 | Monitoring & Observability | Prometheus + Grafana | ⬜ Planned |
@@ -129,6 +129,31 @@ Every push and pull request to `main` automatically triggers a pipeline defined 
 If any step fails, the run is marked red and the problem is caught before it reaches the server.
 
 You can watch runs live in the **Actions** tab of the GitHub repo.
+
+---
+
+## Phase 3: Continuous Deployment (CD)
+
+After CI passes, a `deploy` job automatically ships the new version to the Ubuntu server:
+
+1. Connects to the server over SSH (using a dedicated deploy key stored in GitHub Secrets)
+2. Pulls the latest code
+3. Rebuilds the Docker image
+4. Restarts the container with the new version
+5. Prunes old unused images
+
+The deploy job only runs on pushes to `main` (never on pull requests) and only if the `test`
+and `docker-build` jobs succeed.
+
+**Secrets used** (stored encrypted in GitHub, never in code):
+
+| Secret | Purpose |
+|--------|---------|
+| `SERVER_HOST` | Server IP address |
+| `SERVER_USER` | SSH username |
+| `SERVER_SSH_KEY` | Private deploy key |
+
+The full CI/CD flow is now: **push → test → build image → deploy to server**, all automatic.
 
 ---
 

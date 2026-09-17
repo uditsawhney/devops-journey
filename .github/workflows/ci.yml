@@ -1,13 +1,14 @@
 # ---------------------------------------------------------------------------
-# CI (Continuous Integration) pipeline for the DevOps Journey app.
+# CI/CD pipeline for the DevOps Journey app.
 #
-# This workflow runs automatically on GitHub's servers whenever we push code
-# or open a pull request. It tests and builds the app so we catch problems
-# BEFORE they ever reach the server.
+# CI  (Continuous Integration): on every push/PR, test the code and build the
+#     Docker image, so problems are caught early.
+# CD  (Continuous Deployment): on pushes to main, if CI passes, automatically
+#     deploy the new version to the Ubuntu server over SSH.
 # ---------------------------------------------------------------------------
 
 # The name shown in the GitHub "Actions" tab.
-name: CI
+name: CI/CD
 
 # WHEN should this workflow run? (the trigger)
 on:
@@ -65,3 +66,44 @@ jobs:
       # If the Dockerfile is broken, this step fails and flags the problem.
       - name: Build Docker image
         run: docker build -t devops-journey:ci .
+
+  # -------------------------------------------------------------------------
+  # JOB 3: deploy - ship the new version to the Ubuntu server over SSH.
+  #
+  # Guards that make this safe:
+  #   needs: [test, docker-build]  -> only runs if BOTH earlier jobs passed
+  #   if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+  #       -> only on a real push to main, NEVER on pull requests
+  #          (we don't want an untrusted PR to deploy to our server)
+  # -------------------------------------------------------------------------
+  deploy:
+    runs-on: ubuntu-latest
+    needs: [test, docker-build]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      # Open an SSH session to the server and run our deploy commands there.
+      # appleboy/ssh-action is a widely used Action that handles the SSH
+      # connection for us. Secrets are injected from GitHub Secrets and are
+      # masked in logs (they never print as plain text).
+      - name: Deploy to server over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          # The script below runs ON the server. It pulls the latest code,
+          # rebuilds the image, and restarts the container with the new version.
+          script: |
+            set -e
+            cd ~/src/devops-journey
+            echo "Pulling latest code..."
+            git pull origin main
+            echo "Rebuilding image..."
+            docker build -t devops-journey:latest .
+            echo "Restarting container..."
+            docker rm -f devops-journey-app || true
+            docker run -d -p 5000:5000 --name devops-journey-app --restart unless-stopped devops-journey:latest
+            echo "Cleaning up old unused images..."
+            docker image prune -f
+            echo "Deploy complete."
