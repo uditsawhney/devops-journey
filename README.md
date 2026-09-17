@@ -1,5 +1,7 @@
 # DevOps Journey
 
+![CI](https://github.com/uditsawhney/devops-journey/actions/workflows/ci.yml/badge.svg)
+
 A hands-on project that takes a simple web application through the **entire DevOps lifecycle**, built from scratch on self-hosted Ubuntu servers (no managed cloud required).
 
 The application itself is deliberately tiny, a small Python/Flask web service. The real learning is in everything built *around* it: containers, CI/CD, infrastructure as code, orchestration, and monitoring.
@@ -29,7 +31,7 @@ Stack: **Python 3 + Flask**.
 |-------|-------|-------|--------|
 | 0 | App + repo hygiene | Flask, Git, pytest | ✅ Done |
 | 1 | Containerization | Docker | ✅ Done |
-| 2 | Continuous Integration | GitHub Actions | ⬜ Planned |
+| 2 | Continuous Integration | GitHub Actions | ✅ Done |
 | 3 | Continuous Deployment | GitHub Actions + SSH | ⬜ Planned |
 | 4 | Infrastructure as Code | Terraform + Ansible | ⬜ Planned |
 | 5 | Orchestration | Kubernetes (k3s) | ⬜ Planned |
@@ -110,6 +112,23 @@ docker logs devops-journey-app     # view app logs
 docker stop devops-journey-app     # stop the container
 docker rm devops-journey-app       # remove the container
 ```
+
+---
+
+## Phase 2: Continuous Integration (CI)
+
+Every push and pull request to `main` automatically triggers a pipeline defined in
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) that:
+
+1. Checks out the code
+2. Sets up Python 3.12
+3. Installs dependencies
+4. Runs the test suite with `pytest`
+5. Builds the Docker image (only if tests pass)
+
+If any step fails, the run is marked red and the problem is caught before it reaches the server.
+
+You can watch runs live in the **Actions** tab of the GitHub repo.
 
 ---
 

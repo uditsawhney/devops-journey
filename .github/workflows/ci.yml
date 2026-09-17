@@ -1,0 +1,67 @@
+# ---------------------------------------------------------------------------
+# CI (Continuous Integration) pipeline for the DevOps Journey app.
+#
+# This workflow runs automatically on GitHub's servers whenever we push code
+# or open a pull request. It tests and builds the app so we catch problems
+# BEFORE they ever reach the server.
+# ---------------------------------------------------------------------------
+
+# The name shown in the GitHub "Actions" tab.
+name: CI
+
+# WHEN should this workflow run? (the trigger)
+on:
+  push:
+    branches: [ main ]        # run when code is pushed to main
+  pull_request:
+    branches: [ main ]        # also run on PRs targeting main (safety before merge)
+
+# A workflow is made of one or more JOBS.
+jobs:
+  # -------------------------------------------------------------------------
+  # JOB 1: test - install dependencies and run the automated tests.
+  # -------------------------------------------------------------------------
+  test:
+    # The RUNNER: a fresh Ubuntu virtual machine provided free by GitHub.
+    runs-on: ubuntu-latest
+
+    steps:
+      # STEP 1: Check out (clone) our repository onto the runner.
+      # "uses" pulls in a prebuilt Action maintained by GitHub.
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      # STEP 2: Install Python on the runner.
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # STEP 3: Install our dependencies.
+      # "run" executes shell commands directly on the runner.
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # STEP 4: Run the automated tests. If pytest fails, the job fails (red X).
+      - name: Run tests
+        run: pytest -v
+
+  # -------------------------------------------------------------------------
+  # JOB 2: docker-build - make sure the Docker image still builds.
+  # "needs: test" means this job only runs AFTER the test job passes.
+  # No point building an image from code that fails its tests.
+  # -------------------------------------------------------------------------
+  docker-build:
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      # Build the image exactly like we do on the server.
+      # If the Dockerfile is broken, this step fails and flags the problem.
+      - name: Build Docker image
+        run: docker build -t devops-journey:ci .
