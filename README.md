@@ -33,7 +33,7 @@ Stack: **Python 3 + Flask**.
 | 1 | Containerization | Docker | ✅ Done |
 | 2 | Continuous Integration | GitHub Actions | ✅ Done |
 | 3 | Continuous Deployment | GitHub Actions + SSH | ✅ Done |
-| 4 | Infrastructure as Code | Terraform + Ansible | ⬜ Planned |
+| 4 | Infrastructure as Code | Ansible (+ Terraform) | ✅ Done |
 | 5 | Orchestration | Kubernetes (k3s) | ⬜ Planned |
 | 6 | Monitoring & Observability | Prometheus + Grafana | ⬜ Planned |
 
@@ -154,6 +154,28 @@ and `docker-build` jobs succeed.
 | `SERVER_SSH_KEY` | Private deploy key |
 
 The full CI/CD flow is now: **push → test → build image → deploy to server**, all automatic.
+
+---
+
+## Phase 4: Infrastructure as Code (Ansible)
+
+The [`ansible/`](ansible/) directory automates server setup that was previously manual.
+A single playbook configures a fresh Ubuntu server from scratch:
+
+1. Installs Docker and prerequisites
+2. Enables the Docker service
+3. Clones/updates the app repository
+4. Builds the image and runs the container
+5. Verifies the app responds on `/health`
+
+The playbook is **idempotent** (safe to re-run) and **agentless** (connects over SSH,
+nothing to install on targets). See [`ansible/README.md`](ansible/README.md) for usage.
+
+```bash
+cd ansible
+ansible-playbook -i inventory.ini playbook.yml --check   # dry run
+ansible-playbook -i inventory.ini playbook.yml           # apply
+```
 
 ---
 

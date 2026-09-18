@@ -1,0 +1,119 @@
+# ---------------------------------------------------------------------------
+# PLAYBOOK: describes the desired state of an app server from scratch.
+#
+# Running this against a fresh Ubuntu server will:
+#   1. Install Docker (and prerequisites)
+#   2. Ensure the Docker service is running
+#   3. Clone (or update) our app repository
+#   4. Build the Docker image
+#   5. Run the app container
+#
+# It is IDEMPOTENT: run it as many times as you like. Ansible only changes
+# what isn't already in the desired state.
+# ---------------------------------------------------------------------------
+
+- name: Configure app server and deploy the DevOps Journey app
+  hosts: appservers          # target the [appservers] group from the inventory
+  become: true               # run tasks with sudo (needed to install packages)
+
+  tasks:
+    # -----------------------------------------------------------------------
+    # DOCKER INSTALLATION
+    # -----------------------------------------------------------------------
+    - name: Install prerequisite packages
+      ansible.builtin.apt:
+        name:
+          - ca-certificates
+          - curl
+        state: present         # "present" = make sure it's installed
+        update_cache: true     # refresh the apt package list first
+
+    - name: Create keyrings directory for Docker's GPG key
+      ansible.builtin.file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: "0755"
+
+    - name: Download Docker's official GPG key
+      ansible.builtin.get_url:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        dest: /etc/apt/keyrings/docker.asc
+        mode: "0644"
+
+    - name: Add the Docker apt repository
+      ansible.builtin.apt_repository:
+        repo: >-
+          deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.asc]
+          https://download.docker.com/linux/ubuntu
+          {{ ansible_distribution_release }} stable
+        state: present
+        filename: docker
+
+    - name: Install Docker Engine and plugins
+      ansible.builtin.apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-buildx-plugin
+          - docker-compose-plugin
+        state: present
+        update_cache: true
+
+    - name: Ensure Docker service is started and enabled on boot
+      ansible.builtin.service:
+        name: docker
+        state: started
+        enabled: true
+
+    - name: Add the ubuntu user to the docker group (run docker without sudo)
+      ansible.builtin.user:
+        name: ubuntu
+        groups: docker
+        append: true
+
+    # -----------------------------------------------------------------------
+    # APPLICATION DEPLOYMENT
+    # -----------------------------------------------------------------------
+    - name: Clone or update the application repository
+      ansible.builtin.git:
+        repo: "{{ repo_url }}"
+        dest: "{{ app_dir }}"
+        version: main
+        update: true
+      become: false            # do git as the normal user, not root
+
+    - name: Build the Docker image from the repo
+      ansible.builtin.command:
+        cmd: "docker build -t {{ image_name }} ."
+        chdir: "{{ app_dir }}"
+
+    - name: Stop and remove any existing container
+      ansible.builtin.command:
+        cmd: "docker rm -f {{ container_name }}"
+      # This is allowed to "fail" if the container doesn't exist yet.
+      register: rm_result
+      failed_when: false
+      changed_when: rm_result.rc == 0
+
+    - name: Run the application container
+      ansible.builtin.command:
+        cmd: >-
+          docker run -d
+          -p {{ app_port }}:{{ app_port }}
+          --name {{ container_name }}
+          --restart unless-stopped
+          {{ image_name }}
+
+    - name: Wait for the app to respond on its health endpoint
+      ansible.builtin.uri:
+        url: "http://localhost:{{ app_port }}/health"
+        status_code: 200
+      register: health
+      retries: 5
+      delay: 3
+      until: health.status == 200
+
+    - name: Show deployment result
+      ansible.builtin.debug:
+        msg: "App is healthy and running on port {{ app_port }}."
